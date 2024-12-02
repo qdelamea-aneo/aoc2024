@@ -8,7 +8,7 @@
                 .Split('\n')
                 .Where(s => !string.IsNullOrEmpty(s))
                 .Select(s => s.Split(' ').Select(n => Int32.Parse(n)).ToList())
-                .Where(s => IsReportSafe(s))
+                .Where(s => IsReportSafeWithProblemDampener(s))
                 .Count();
             
             Console.WriteLine($"Result: {result}.");
@@ -24,6 +24,17 @@
             Console.WriteLine(e);
         }
     }
+
+    static bool IsReportSafeWithProblemDampener(List<int> report) {
+        var reports = report
+            .Select((_, index) => report.Where((_, i) => i != index).ToList()).ToList();
+        foreach (var alteredReport in reports) {
+            if (IsReportSafe(alteredReport)) {
+                return true;
+            }
+        }
+        return false;
+    } 
 
     static bool IsReportSafe(List<int> report) {
         if (report.Count == 1) {
