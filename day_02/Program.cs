@@ -1,52 +1,56 @@
 ﻿class Program {
     static void Main() {
-        try {
-            string inputPath = "../data/day_02/input.txt";
-            var reader = new StreamReader(inputPath);
-            var data = reader.ReadToEnd();
-            int result = data
-                .Split('\n')
-                .Where(s => !string.IsNullOrEmpty(s))
-                .Select(s => s.Split(' ').Select(n => Int32.Parse(n)).ToList())
-                .Where(s => IsReportSafeWithProblemDampener(s))
-                .Count();
-            
-            Console.WriteLine($"Result: {result}.");
-        }
-        catch (IOException e)
-        {
-            Console.WriteLine("The input file could not be read.");
-            Console.WriteLine(e);
-        }
-        catch (FormatException e)
-        {
-            Console.WriteLine("Error while parsing string to integer.");
-            Console.WriteLine(e);
-        }
+        string inputPath = "../data/day_02/input.txt";
+        int result = File
+            .ReadLines(inputPath)
+            .Where(line => !string.IsNullOrEmpty(line))
+            .Select(line => line.Split(' ').Select(Int32.Parse))
+            .Where(report => report
+                .Select((_, index) => report.Where((_, i) => i != index))
+                .Any(IsReportSafe))
+            .Count();
+        
+        Console.WriteLine($"Result: {result}.");
     }
 
-    static bool IsReportSafeWithProblemDampener(List<int> report) {
-        var reports = report
-            .Select((_, index) => report.Where((_, i) => i != index).ToList()).ToList();
-        foreach (var alteredReport in reports) {
-            if (IsReportSafe(alteredReport)) {
-                return true;
-            }
-        }
-        return false;
-    } 
+    static bool IsReportSafe(IEnumerable<int> report)
+    {
+        var enumerator = report.GetEnumerator();
+        if (!enumerator.MoveNext())
+            return false; // Ensure the list is not empty.
 
-    static bool IsReportSafe(List<int> report) {
-        if (report.Count == 1) {
-            return true;
+        int prev = enumerator.Current;
+
+        // Determine the direction of the list: ascending or descending
+        if (!enumerator.MoveNext())
+            return true; // A single-element list is safe.
+
+        int next = enumerator.Current;
+        bool isAscending = next > prev;
+        bool isDescending = next < prev;
+
+        // If the first two elements are equal, the list is invalid
+        if ((!isAscending && !isDescending) || Math.Abs(prev - next) > 3)
+            return false;
+
+        prev = next;
+
+        while (enumerator.MoveNext())
+        {
+            next = enumerator.Current;
+
+            if (isAscending && next <= prev)
+                return false;
+
+            if (isDescending && next >= prev)
+                return false;
+
+            if (Math.Abs(next - prev) > 3)
+                return false;
+
+            prev = next;
         }
 
-        var maxMagnitude = report.Zip(report.Skip(1), (x, y) => Math.Abs(x - y)).Max();
-        var isAscending = report.Zip(report.Skip(1), (x, y) => x > y).All(x => x);
-        var isDescending = report.Zip(report.Skip(1), (x, y) => x < y).All(x => x);
-        if (maxMagnitude <= 3 && (isAscending || isDescending)) {
-            return true;
-        }
-        return false;
+        return true;
     }
 }
