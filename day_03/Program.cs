@@ -9,8 +9,11 @@ static class Program {
         var pattern = @"mul\((\d+),(\d+)\)";
         var regex = new Regex(pattern);
         int result = 0;
-        foreach (Match match in regex.Matches(data)) {
-            result += Int32.Parse(match.Groups[1].Value) * Int32.Parse(match.Groups[2].Value);
+        var segments = data.Split("do()").Select(segment => segment.Split("don't()").First());
+        foreach (var segment in segments) {
+            foreach (Match match in regex.Matches(segment)) {
+                result += Int32.Parse(match.Groups[1].Value) * Int32.Parse(match.Groups[2].Value);
+            }
         }
         Console.WriteLine($"Result: {result}.");
     }
