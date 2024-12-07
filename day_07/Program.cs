@@ -1,26 +1,38 @@
-﻿static class Program {
+﻿using System.Threading.Tasks;
+
+static class Program {
     public static void Main() {
         string inputPath = "../data/day_07/input.txt";
         long result = File
-            .ReadLines(inputPath)
+            .ReadAllLines(inputPath)
+            .AsParallel()
             .Select(line => line
                 .Split([':', ' '])
                 .Where(n => !string.IsNullOrEmpty(n))
                 .Select(Int64.Parse)
                 .ToList()
             )
-            .Where(numbers => {
-                foreach (var opComb in OpCombinations(numbers.Count() - 1)) {
-                    long res = numbers[1];
-                    foreach (var index in Enumerable.Range(0, opComb.Count() - 1)) {
-                        res = (opComb.ElementAt(index) == '+') ? res + numbers[2 + index] : res * numbers[2 + index];
-                    }
-                    if (numbers[0] == res) {
-                        return true;
-                    }
-                }
-                return false;
-            })
+            .Where(numbers => OpCombinations(numbers.Count() - 1)
+                    .Any(opComb => {
+                        long res = numbers[1];
+                        foreach (var index in Enumerable.Range(0, opComb.Count() - 1)) {
+                            switch (opComb.ElementAt(index)) {
+                                case '+':
+                                    res += numbers[2 + index];
+                                    break;
+                                case '*':
+                                    res *= numbers[2 + index];
+                                    break;
+                                case '|':
+                                    res = res * (long)Math.Pow(10, numbers[2 + index].ToString().Count()) + numbers[2 + index];
+                                    break;
+                                default:
+                                    throw new ArgumentException($"Inconsistent operation {opComb.ElementAt(index)}.");
+                            }
+                        }
+                        return numbers[0] == res;
+                    })
+                )
             .Select(numbers => numbers.First())
             .Sum();
         Console.WriteLine($"Result: {result}.");
@@ -33,7 +45,7 @@
         }
 
         foreach (var combination in OpCombinations(repeat - 1)) {
-            foreach (var op in new char[] { '+', '*' }) {
+            foreach (var op in new char[] { '+', '*', '|' }) {
                 yield return Enumerable.Repeat(op, 1).Concat(combination);
             }
         }
