@@ -1,4 +1,7 @@
-﻿public class Map {
+﻿using System.Threading.Tasks;
+
+
+public class Map {
     private char[,] map;
     private (int,int) position;
     private (int, int) dimensions;
@@ -131,16 +134,17 @@
 static class Program {
     public static void Main() {
         string inputPath = "../data/day_06/input.txt";
-        int result = 0;
+        var possibleObstaclePositions = new Map(inputPath).GetFreePositions();
+        var tasks = possibleObstaclePositions
+            .Select(possibleObstaclePosition => Task.Run(() => {
+                var map = new Map(inputPath);
+                map.AddObstacle(possibleObstaclePosition);
+                return map.IsGuardStuck() ? 1 : 0;
+            }))
+            .ToArray();
 
-        foreach (var possibleObstaclePosition in new Map(inputPath).GetFreePositions()) {
-            Console.WriteLine($"Exploring petrol for obstacle in {possibleObstaclePosition}");
-            var map = new Map(inputPath);
-            map.AddObstacle(possibleObstaclePosition);
-            if (map.IsGuardStuck()) {
-                result++;
-            }
-        }
+        Task.WaitAll(tasks);
+        int result = tasks.Sum(task => task.Result);
 
         Console.WriteLine($"Result: {result}.");
     }
