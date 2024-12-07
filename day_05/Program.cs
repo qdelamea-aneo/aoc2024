@@ -1,6 +1,6 @@
 ﻿static class Program {
     public static void Main() {
-        string inputPath = "../data/day_05/sample.txt";
+        string inputPath = "../data/day_05/input.txt";
         var rules = new Dictionary<int,List<int>>();
         var printings = new List<List<int>>();
         int result = 0;
@@ -44,8 +44,6 @@
                         }
                     }
                 });
-                Console.WriteLine($"Ordered printing: {string.Join(",", printing)}");
-                // Console.WriteLine($"Adding: {printing[printing.Count() / 2]}");
                 result += printing[printing.Count() / 2];
             }
         }
