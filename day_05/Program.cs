@@ -1,6 +1,6 @@
 ﻿static class Program {
     public static void Main() {
-        string inputPath = "../data/day_05/input.txt";
+        string inputPath = "../data/day_05/sample.txt";
         var rules = new Dictionary<int,List<int>>();
         var printings = new List<List<int>>();
         int result = 0;
@@ -21,7 +21,7 @@
         }
         
         foreach (var printing in printings) {
-            bool isCorrect = !printing
+            bool isNotCorrect = printing
                 .SelectMany((p, i) => printing.Skip(i + 1), (p1, p2) => (p1, p2))
                 .Any(pageCouple => {
                     try {
@@ -30,8 +30,21 @@
                         return false;
                     }
                 });
-            if (isCorrect) {
-                // Console.WriteLine($"Correct printing: {string.Join(",", printing)}");
+            if (isNotCorrect) {
+                printing.Sort((p1, p2) => {
+                    try {
+                        if (rules[p1].Contains(p2)) return -1;
+                        return 1;
+                    } catch (KeyNotFoundException) {
+                        try {
+                            if (rules[p2].Contains(p1)) return 1;
+                            return -1;
+                        } catch (KeyNotFoundException) {
+                            return 0;
+                        }
+                    }
+                });
+                Console.WriteLine($"Ordered printing: {string.Join(",", printing)}");
                 // Console.WriteLine($"Adding: {printing[printing.Count() / 2]}");
                 result += printing[printing.Count() / 2];
             }
