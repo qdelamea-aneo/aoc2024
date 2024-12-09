@@ -13,40 +13,58 @@
                 }
             })
             .SelectMany(list => list)
-            .ToList();
+            .ToArray();
 
-        var freeBlocks = FreeBlockPositions(disk);
-        var fileBlocks = FinalFileBlockPositions(disk);
+        var freeBlocks = FreeBlocks(disk);
+        var fileBlocks = FileBlocks((int[])disk.Clone());
 
-        foreach (var (freeBlock, fileBlock) in freeBlocks.Zip(fileBlocks, (freeBlock, fileBlock) => (freeBlock, fileBlock))) {
-            if (freeBlock > fileBlock) {
-                break;
+        foreach (var (fileBlockStart, fileBlockLength) in fileBlocks) {
+            foreach (var (freeBlockStart, freeBlockLength) in freeBlocks) {
+                if (freeBlockStart > fileBlockStart) {
+                    break;
+                }
+                if (freeBlockLength > fileBlockLength) {
+                    Array.Copy(disk, fileBlockStart, disk, freeBlockStart, fileBlockLength);
+                    Array.Copy(Enumerable.Repeat(-1, fileBlockLength).ToArray(), 0, disk, fileBlockStart, fileBlockLength);
+                }
             }
-            disk[freeBlock] = disk[fileBlock];
-            disk[fileBlock] = -1;
         }
 
         long result = disk
-            .TakeWhile(n => n >= 0)
-            .Select((n, i) => (long)(n * i))
+            .Select((n, i) => n != -1 ? (long)(n * i) : 0)
             .Sum();
 
         // Console.WriteLine(string.Join(",", disk));
         Console.WriteLine($"Result: {result}.");
     }
 
-    static IEnumerable<int> FreeBlockPositions(List<int> disk) {
-        for (int i = 0; i < disk.Count(); i++) {
+    static IEnumerable<(int, int)> FreeBlocks(int[] disk) {
+        int i = 0;
+        while (i < disk.Length) {
             if (disk[i] == -1) {
-                yield return i;
+                var start = i;
+                while (i < disk.Length && disk[i] == -1) {
+                    i++;
+                }
+                yield return (start, i - start + 1);
+            } else {
+                i++;
             }
         }
     }
 
-    static IEnumerable<int> FinalFileBlockPositions(List<int> disk) {
-        for (int i = disk.Count() - 1; i >= 0; i--) {
+    static IEnumerable<(int, int)> FileBlocks(int[] disk) {
+        int i = disk.Length - 1;
+        while (i >= 0) {
             if (disk[i] != -1) {
-                yield return i;
+                int id = disk[i];
+                var end = i;
+                while (i >= 0 && disk[i] == id) {
+                    i--;
+                }
+                yield return (i + 1, end - i);
+            } else {
+                i--;
             }
         }
     }
