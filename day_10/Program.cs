@@ -61,9 +61,7 @@
     static void GetScore(int[,] map, (int, int) currentPosition, (int, int) initialPosition, Dictionary<(int, int), List<(int, int)>> peaks) {
         // Console.WriteLine($"Current position: {currentPosition}.");
         if (map[currentPosition.Item1, currentPosition.Item2] == 9) {
-            if (!peaks[initialPosition].Contains(currentPosition)) {
-                peaks[initialPosition].Add(currentPosition);
-            }
+            peaks[initialPosition].Add(currentPosition);
             return;
         }
         var nextPositions = GetPossibleNextPositions(map, currentPosition);
