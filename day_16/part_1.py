@@ -1,56 +1,113 @@
-import sys
+import heapq
 
+from collections import defaultdict
+from dataclasses import dataclass
 from pathlib import Path
 
 
-sys.setrecursionlimit(100000)
+@dataclass
+class Node:
+    position: tuple[int, int]
+    direction: tuple[int, int]
+
+
+class Graph:
+
+    def __init__(self, maze: list[list[str]], start: tuple[int, int], end: tuple[int, int]) -> None:
+        self.maze = maze
+        self.start = start
+        self.end = end
+        self.path_scores = {}
+
+    @classmethod
+    def load_from_file(cls, input_path: Path) -> "Graph":
+        maze = []
+        with input_path.open() as file:
+            for line in file.readlines():
+                maze.append(line[:-1])
+        return cls(
+            maze=maze,
+            start=(len(maze) - 2, 1),
+            end=(1, len(maze[0]) - 2),
+        )
+
+    @property
+    def source_vertex(self) -> Node:
+        return Node(*self.next_fork(self.start, (0, 1)))
+
+    @property
+    def final_vertex(self) -> tuple[int, int]:
+        if self.is_fork(self.end):
+            return self.end
+        return self.next_fork(self.end)
+
+    @property
+    def initial_score(self) -> int:
+        return self.path_scores(self.start, self.source_vertex[0], (0, 1))
+
+    def final_score(self, direction: tuple[int, int]) -> int:
+        return self.path_scores(self.final_vertex, self.end, direction)
+
+    def neighbors(self, v: tuple[int, int], direction: tuple[int, int]) -> list[tuple[int, int]]:
+        return [self.next_fork(v, direction) for direction in self.valid_directions(v)]
+
+    def next_fork(self, v: Node) -> Node:
+        initial = v
+        score = 0
+        while not self.is_fork(v):
+            next_direction = self.get_valid_directions(v)
+            if len(next_direction) > 1:
+                raise RuntimeError()
+            score += 1 if v.direction == next_direction else 1001
+            v.position = (v.position[0] + next_direction[0], v.position[1] + next_direction[1])
+            v.direction = next_direction
+        self.path_scores[initial, v] = score
+        return v
+
+    def get_valid_directions(self, v: Node) -> list[tuple[int, int]]:
+        directions = {(1, 0), (-1, 0), (0, 1), (0, -1)} - {(-initial_direction[0], -initial_direction[1])} if initial_direction is not None else {}
+        directions = {direction: (position[0] + direction[0], position[1] + direction[1]) for direction in directions}
+        directions = {direction: next_position for direction, next_position in directions.items() if self.is_within_borders(next_position) and self.maze[next_position[0]][next_position[1]] != "#"}
+        return [*directions.keys()]
+
+    def is_fork(self, v: tuple[int, int]) -> bool:
+        num_neighbouring_free_tiles = 0
+        for tile in [(v[0] + move[0], v[1] + move[1]) for move in {(1, 0), (-1, 0), (0, 1), (0, -1)}]:
+            if self.is_within_borders(tile) and self.maze[tile[0]][tile[1]] != "%":
+                neighbouring_free_tiles.append(tile)
+        return len(neighbouring_free_tiles) > 2
+
+    def is_within_borders(self, v: tuple[int, int]) -> bool:
+        if 1 <= v[0] < len(self.maze) - 1 and 1 <= v[1] < len(self.maze[0]) - 1:
+            return True
+        return False
 
 
 def main(input_path: Path) -> int:
-    map = load_map_from_file(input_path)
-    memory = {}
-    score = find_path_lowest_score(map, (len(map) - 2, 1), (0, 1), memory=memory)
-    print(len(memory.keys()))
-    return score
+    graph = Graph.load_from_file(input_path)
+    dist = defaultdict(lambda: float("inf"))
+    visited = defaultdict(bool)
+    priority_queue = []
 
+    source, direction, score = graph.source_vertex
+    dist[(source, direction)] = score
+    heapq.heappush(priority_queue, (score, source, direction))
 
-def load_map_from_file(input_path: Path) -> list[list[str]]:
-    map = []
-    with input_path.open() as file:
-        for line in file.readlines():
-            map.append(line[:-1])
-    return map
+    while priority_queue:
+        _, u, direction = heapq.heappop(priority_queue)
 
+        if visited[u]:
+            continue
+        visited[u] = True
 
-def find_path_lowest_score(map: list[list[str]], position: tuple[int, int], direction: tuple[int, int], path: list[tuple[int, int]] = [], *, memory: dict[tuple[int, int], int]) -> int | None:
-    if position == (1, len(map[0]) - 2):
-        return 0
+        for neighbor in graph.neighbors(u, direction):
+            if not visited[neighbor]:
+                alt = dist[(u, direction)] + graph.path_scores(u, neighbor)
+                if alt < dist[neighbor]:
+                    dist[neighbor] = alt
+                    heapq.heappush(priority_queue, (dist[neighbor], neighbor, direction))
 
-    if position in path:
-        return None
-
-    if (position, direction) in memory.keys():
-        return memory[(position, direction)]
-
-    lowest_score = None
-    num_free_neighboring_tiles = 0
-    for next_position, next_direction in get_free_neighboring_tiles(map, position, direction):
-        num_free_neighboring_tiles += 1
-        score = find_path_lowest_score(map, next_position, next_direction, path + [position], memory=memory)
-        if score is not None:
-            score += 1 if next_direction == direction else 1001
-            if lowest_score is None or score < lowest_score:
-                lowest_score = score
-    if num_free_neighboring_tiles > 1:
-        memory[(position, direction)] = lowest_score
-    return lowest_score
-
-
-def get_free_neighboring_tiles(map: list[list[str]], position: tuple[int, int], direction: tuple[int, int]):
-    for move in {(-1, 0), (0, 1), (1, 0), (0, -1)} - {(-direction[0], -direction[1])}:
-        new_position = (position[0] + move[0], position[1] + move[1])
-        if 0 <= new_position[0] < len(map) and 0<= position[1] < len(map[0]) and map[new_position[0]][new_position[1]] != "#":
-            yield new_position, move
+    return dist[graph.final_vertex] + graph.final_score
 
 
 if __name__ == "__main__":
