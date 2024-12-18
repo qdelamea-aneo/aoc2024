@@ -10,6 +10,12 @@ class Node:
     position: tuple[int, int]
     direction: tuple[int, int]
 
+    def __hash__(self):
+        return hash(self.position) + hash(self.direction)
+
+    def __gt__(self, other: "Node") -> bool:
+        return True
+
 
 class Graph:
 
@@ -33,52 +39,24 @@ class Graph:
 
     @property
     def source_vertex(self) -> Node:
-        return Node(*self.next_fork(self.start, (0, 1)))
+        return Node(self.start, (0, 1))
 
-    @property
-    def final_vertex(self) -> tuple[int, int]:
-        if self.is_fork(self.end):
-            return self.end
-        return self.next_fork(self.end)
+    def neighbors(self, v: Node) -> list[Node]:
+        directions = {(1, 0), (-1, 0), (0, 1), (0, -1)} - {(-v.direction[0], -v.direction[1])}
+        neighbors = set()
+        for direction in directions:
+            position = (v.position[0] + direction[0], v.position[1] + direction[1])
+            if self.is_valid_position(position):
+                neighbors.add(Node(position, direction))
+        return neighbors
 
-    @property
-    def initial_score(self) -> int:
-        return self.path_scores(self.start, self.source_vertex[0], (0, 1))
+    def edge_weight(self, u: Node, v: Node) -> int:
+        if u.position[0] != u.position[0] and u.position[1] != u.position[1]:
+            raise ValueError("Theses nodes are not neighbors.")
+        return 1 if u.direction == v.direction else 1001
 
-    def final_score(self, direction: tuple[int, int]) -> int:
-        return self.path_scores(self.final_vertex, self.end, direction)
-
-    def neighbors(self, v: tuple[int, int], direction: tuple[int, int]) -> list[tuple[int, int]]:
-        return [self.next_fork(v, direction) for direction in self.valid_directions(v)]
-
-    def next_fork(self, v: Node) -> Node:
-        initial = v
-        score = 0
-        while not self.is_fork(v):
-            next_direction = self.get_valid_directions(v)
-            if len(next_direction) > 1:
-                raise RuntimeError()
-            score += 1 if v.direction == next_direction else 1001
-            v.position = (v.position[0] + next_direction[0], v.position[1] + next_direction[1])
-            v.direction = next_direction
-        self.path_scores[initial, v] = score
-        return v
-
-    def get_valid_directions(self, v: Node) -> list[tuple[int, int]]:
-        directions = {(1, 0), (-1, 0), (0, 1), (0, -1)} - {(-initial_direction[0], -initial_direction[1])} if initial_direction is not None else {}
-        directions = {direction: (position[0] + direction[0], position[1] + direction[1]) for direction in directions}
-        directions = {direction: next_position for direction, next_position in directions.items() if self.is_within_borders(next_position) and self.maze[next_position[0]][next_position[1]] != "#"}
-        return [*directions.keys()]
-
-    def is_fork(self, v: tuple[int, int]) -> bool:
-        num_neighbouring_free_tiles = 0
-        for tile in [(v[0] + move[0], v[1] + move[1]) for move in {(1, 0), (-1, 0), (0, 1), (0, -1)}]:
-            if self.is_within_borders(tile) and self.maze[tile[0]][tile[1]] != "%":
-                neighbouring_free_tiles.append(tile)
-        return len(neighbouring_free_tiles) > 2
-
-    def is_within_borders(self, v: tuple[int, int]) -> bool:
-        if 1 <= v[0] < len(self.maze) - 1 and 1 <= v[1] < len(self.maze[0]) - 1:
+    def is_valid_position(self, position: tuple[int, int]) -> bool:
+        if 1 <= position[0] < len(self.maze) - 1 and 1 <= position[1] < len(self.maze[0]) - 1 and self.maze[position[0]][position[1]] != "#":
             return True
         return False
 
@@ -89,26 +67,26 @@ def main(input_path: Path) -> int:
     visited = defaultdict(bool)
     priority_queue = []
 
-    source, direction, score = graph.source_vertex
-    dist[(source, direction)] = score
-    heapq.heappush(priority_queue, (score, source, direction))
+    source = graph.source_vertex
+    dist[source] = 0
+    heapq.heappush(priority_queue, (0, source))
 
     while priority_queue:
-        _, u, direction = heapq.heappop(priority_queue)
+        _, u = heapq.heappop(priority_queue)
 
         if visited[u]:
             continue
         visited[u] = True
 
-        for neighbor in graph.neighbors(u, direction):
+        for neighbor in graph.neighbors(u):
             if not visited[neighbor]:
-                alt = dist[(u, direction)] + graph.path_scores(u, neighbor)
+                alt = dist[u] + graph.edge_weight(u, neighbor)
                 if alt < dist[neighbor]:
                     dist[neighbor] = alt
-                    heapq.heappush(priority_queue, (dist[neighbor], neighbor, direction))
+                    heapq.heappush(priority_queue, (dist[neighbor], neighbor))
 
-    return dist[graph.final_vertex] + graph.final_score
+    return min([score for v, score in dist.items() if v.position == graph.end])
 
 
 if __name__ == "__main__":
-    print(f"Score: {main(Path('../data/day_16/sample2.txt'))}")
+    print(f"Score: {main(Path('../data/day_16/input.txt'))}")
