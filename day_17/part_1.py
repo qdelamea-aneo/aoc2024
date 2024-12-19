@@ -67,7 +67,9 @@ class Computer:
     def cdv(self, operand: int) -> None:
         self.reg_c = self.reg_a >> self.combo(operand)
 
-    def run(self):
+    def run(self, debug: bool = False):
+        if debug:
+            print(f"op=INI  reg_a={bin(self.reg_a)}  reg_b={bin(self.reg_b)}  reg_c={bin(self.reg_c)}  output={self.output}")
         while self.pc < len(self.program) - 1:
             operand = self.program[self.pc + 1]
             initial_pc = self.pc
@@ -93,6 +95,8 @@ class Computer:
                     raise RuntimeError(f"Invalid opcode {opcode}.")
             if self.pc == initial_pc:
                 self.pc += 2
+            if debug:
+                print(f"op={OpCode(opcode).name}  reg_a={bin(self.reg_a)}  reg_b={bin(self.reg_b)}  reg_c={bin(self.reg_c)}  output={self.output}")
 
 @pytest.mark.parametrize(("computer", "reg_a", "reg_b", "output"), [
     (Computer(reg_a=0, reg_b=0, reg_c=9, program=[2,6]), None, 1, None),
@@ -129,8 +133,22 @@ def parse_input(input_path: Path) -> tuple[int, int, int, list[str]]:
     return reg_a, reg_b, reg_c, program
 
 
+def solver(output: list[int]) -> list[int]:
+    if not output:
+        return [0]
+    
+    sol = []
+    for prev in solver(output[1:]):
+        for num in range(8):
+            num = (prev << 3) | num
+            computer = Computer(reg_a=num, reg_b=0, reg_c=0, program=program)
+            computer.run()
+            if computer.output == ",".join([str(i) for i in output]):
+                sol.append(num)
+    return sol
+
+
 if __name__ == "__main__":
     input_path = Path("../data/day_17/input.txt")
-    computer = Computer(*parse_input(input_path))
-    computer.run()
-    print(computer.output)
+    _, _, _, program = parse_input(input_path)
+    print(f"Result: {min(solver(program))}")
